@@ -41,8 +41,8 @@ services:
         target: /usr/share/logstash/pipeline
         read_only: true
     ports:
-      - "5000:5000/tcp"
-      - "5000:5000/udp"
+      - "5001:5000/tcp"
+      - "5001:5000/udp"
       - "9600:9600"
     environment:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
@@ -50,6 +50,7 @@ services:
       - elk
     depends_on:
       - elasticsearch
+      - rabbitmq
 
   kibana:
     build:
@@ -67,6 +68,61 @@ services:
       - elk
     depends_on:
       - elasticsearch
+
+  rabbitmq:
+    build: ./rabbitmq/
+    container_name: rabbitmq-container
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - elk
+
+  vault-server:
+    image: vault:1.13.3
+    container_name: vault-server-container
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_DEV_ROOT_TOKEN_ID: "vault-plaintext-root-token"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - elk
+  postgres:
+    image: postgres
+    container_name: postgres-container-main
+    ports:
+      - "54320:5432"
+    environment:
+      POSTGRES_USER: "myuser"
+      POSTGRES_PASSWORD: "mysecretpassword"
+      POSTGRES_DB: "shopdb"
+    networks:
+      - elk
+  postgresUser:
+    image: postgres
+    container_name: postgres-container-user
+    ports:
+      - "54321:5432"
+    environment:
+      POSTGRES_USER: "myuser"
+      POSTGRES_PASSWORD: "mysecretpassword"
+      POSTGRES_DB: "shopdb"
+    networks:
+      - elk
+
+  dev12:
+    image: dev12/springjdbc:1.0
+    ports:
+      - "8666:8666"
+    networks:
+      - elk
+    depends_on:
+      - rabbitmq
+      - postgres
+      - vault-server
 
 networks:
   elk:
